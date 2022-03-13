@@ -4,6 +4,12 @@ A command-line tool to solve games of Wordle and Absurdle.
 ## The Algorithm
 Currently, the program uses a simple greedy algorithm, suggesting the guess that will result in the smallest number of possible answers at the next step.
 
+<details>
+    <summary> Why not use a search tree? </summary>
+    
+A search tree would give us the optimal strategy, but at the cost of time. Search trees are commonly used in chess, where the branching factor is about 35 (i.e., from any given board position there are, on average, about 35 legal moves). However, in Wordle, the game will accept over 12,000 words as guesses. So Wordle has a branching factor over 300 times that of chess. This makes solving Wordle with a search tree intractable without precomputing the entire tree, which, while possible, is not within the spirit of this project.
+</details>
+
 ## Options
 ### Wordle and Absurdle mode
 In Wordle mode, the algorithm assumes that the target word is chosen randomly from the list of possible answers. In Absurdle mode, the algorithm assumes that the opponent will adversarily give clues that result in the largest number of possible answers.
