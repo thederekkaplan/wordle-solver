@@ -78,7 +78,6 @@ type Knowledge = {
 })()
 
 function wordle(knowledge: Knowledge, guesses: string[], answers: string[]): string {
-    console.log(answers);
     if (answers.length === 1) return answers[0];
 
     let { minGuess } = guesses.reduce(({ minGuess, min }, guess) => {
