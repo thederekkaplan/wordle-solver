@@ -67,7 +67,7 @@ type Knowledge = {
             } while (!guesses.includes(guess));
         } else guess = (wordleMode ? wordle(knowledge, guesses, answers) : absurdle(knowledge, guesses, answers));
 
-        console.log(guess);
+        console.log(guess.split("").join(" "));
         let clue = await inputClue();
         [knowledge, answers] = prune(knowledge, answers, guess, clue);
         if (hardMode) [knowledge, guesses] = prune(knowledge, guesses, guess, clue);
