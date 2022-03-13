@@ -9,36 +9,10 @@ enum Status {
 
 type Clue = Status[];
 
-type Letters = { [key: string]: { min: number, max: number } }
-
-type Knowledge = {
-    letters: Letters // the minimum and maximum amount of each letter of the alphabet
-    possibilities: string[][] // for each position in the word, which letters could exist there
-}
-
 (async () => {
     let answers = (await fs.readFile("answers.txt", "utf8")).split("\n"); // possible answers
     let guessesWithoutAnswers = (await fs.readFile("guesses.txt", "utf8")).split("\n");
     let guesses = merge(answers, guessesWithoutAnswers); // valid guesses
-
-    let knowledge: Knowledge = {
-        letters: Object.fromEntries("abcdefghijklmnopqrstuvwxyz".split("").map(v => [v, { min: 5, max: 0 }])),
-        possibilities: Array(5).fill(0).map(_ => [])
-    };
-
-    for (let item of answers) {
-        for (let i = 0; i < item.length; i++) {
-            if (!knowledge.possibilities[i].includes(item[i])) {
-                knowledge.possibilities[i].push(item[i]);
-            }
-        }
-
-        for (let letter of "abcdefghijklmnopqrstuvwxyz") {
-            let count = (item.match(new RegExp(letter, "g")) || []).length;
-            if (count < knowledge.letters[letter].min) knowledge.letters[letter].min = count;
-            if (count > knowledge.letters[letter].max) knowledge.letters[letter].max = count;
-        }
-    }
 
     let wordleMode = await binaryPrompt("1: Wordle\n2: Absurdle");
     let hardMode = await binaryPrompt("1: Hard\n2: Normal");
@@ -54,8 +28,8 @@ type Knowledge = {
 
     console.log(guess.split("").join(" "));
     let clue = await inputClue();
-    [knowledge, answers] = prune(knowledge, answers, guess, clue);
-    if (hardMode) [knowledge, guesses] = prune(knowledge, guesses, guess, clue);
+    answers = prune(answers, guess, clue);
+    if (hardMode) guesses = prune(guesses, guess, clue);
 
     while (answers.length > 1) {
         console.log(answers.length, "words remaining");
@@ -65,26 +39,26 @@ type Knowledge = {
             do {
                 guess = await inputGuess();
             } while (!guesses.includes(guess));
-        } else guess = (wordleMode ? wordle(knowledge, guesses, answers) : absurdle(knowledge, guesses, answers));
+        } else guess = (wordleMode ? wordle(guesses, answers) : absurdle(guesses, answers));
 
         console.log(guess.split("").join(" "));
         let clue = await inputClue();
-        [knowledge, answers] = prune(knowledge, answers, guess, clue);
-        if (hardMode) [knowledge, guesses] = prune(knowledge, guesses, guess, clue);
+        answers = prune(answers, guess, clue);
+        if (hardMode) guesses = prune(guesses, guess, clue);
     }
     console.log("The answer is", answers[0]);
     process.exit();
 
 })()
 
-function wordle(knowledge: Knowledge, guesses: string[], answers: string[]): string {
+function wordle(guesses: string[], answers: string[]): string {
     if (answers.length === 1) return answers[0];
 
     let { minGuess } = guesses.reduce(({ minGuess, min }, guess) => {
         let clues: string[][] = Array(243).fill(0).map(v => []);
 
         for (let answer of answers) {
-            let int = clueToInt(getClue(knowledge, guess, answer));
+            let int = clueToInt(getClue(guess, answer));
             clues[int].push(answer);
         }
 
@@ -97,14 +71,14 @@ function wordle(knowledge: Knowledge, guesses: string[], answers: string[]): str
     return minGuess
 }
 
-function absurdle(knowledge: Knowledge, guesses: string[], answers: string[]): string {
+function absurdle(guesses: string[], answers: string[]): string {
     if (answers.length === 1) return answers[0];
 
     let { minGuess } = guesses.reduce(({ minGuess, min }, guess) => {
         let clues: string[][] = Array(243).fill(0).map(v => []);
 
         for (let answer of answers) {
-            let int = clueToInt(getClue(knowledge, guess, answer));
+            let int = clueToInt(getClue(guess, answer));
             clues[int].push(answer);
         }
 
@@ -242,7 +216,7 @@ function intToClue(i: number): Clue {
     return clue.reverse();
 }
 
-function getClue(knowledge: Knowledge, guess: string, answer: string): Clue {
+function getClue(guess: string, answer: string): Clue {
     let clue: Clue = [];
     let letters = Object.fromEntries("abcdefghijklmnopqrstuvwxyz".split("").map(v => [v, 0]));
 
@@ -267,72 +241,8 @@ function getClue(knowledge: Knowledge, guess: string, answer: string): Clue {
     return clue;
 }
 
-function prune(knowledge: Knowledge, list: string[], guess: string, clue: Clue): [Knowledge, string[]] {
-    let possibilities = updatePossibilites(knowledge.possibilities, guess, clue);
-    if (possibilities.some(arr => arr.length == 0)) return [knowledge, []];
-    let letters = updateLetters(knowledge.letters, guess, clue);
-    for (let [k, v] of Object.entries(letters)) {
-        if (v.min < letters[k].min || v.max > letters[k].max || v.min > v.max) return [knowledge, []];
-    }
-    let result = [];
-
-    outer: for (let item of list) {
-        for (let i = 0; i < 5; i++) {
-            if (!possibilities[i].includes(item[i])) continue outer;
-        }
-
-        let itemLetters = new Set(item.split(""));
-
-        for (let letter of Object.keys(letters)) {
-            let count = (item.match(new RegExp(letter, "g")) || []).length;
-            if (count < letters[letter].min || count > letters[letter].max) continue outer;
-        }
-
-        result.push(item);
-    }
-
-    return [{ possibilities, letters }, result];
-}
-
-function updateLetters(letters: Letters, guess: string, clue: Clue): Letters {
-    let newLetters = { ...letters };
-
-    let guessLetters = new Set(guess.split(""));
-    for (let letter of guessLetters) {
-        let [all, yes, no] = guess.split("").reduce(([all, yes, no], char, i) => {
-            if (char !== letter) {
-                return [all, yes, no]
-            }
-            if (clue[i] === Status.Gray) {
-                return [all + 1, yes, no + 1]
-            } else {
-                return [all + 1, yes + 1, no]
-            }
-        }, [0, 0, 0]);
-
-        let min = Math.max(yes, letters[letter].min);
-        let max = letters[letter].max;
-        if (no > 0) max = yes;
-        newLetters[letter] = { min, max };
-    }
-
-    return newLetters;
-}
-
-function updatePossibilites(possibilities: string[][], guess: string, clue: Clue): string[][] {
-    possibilities = possibilities.map(arr => arr.slice());
-    for (let i = 0; i < 5; i++) {
-        if (clue[i] === Status.Gray) {
-            possibilities[i] = possibilities[i].filter(v => v !== guess[i])
-        }
-        if (clue[i] === Status.Yellow) {
-            possibilities[i] = possibilities[i].filter(v => v !== guess[i])
-        }
-        if (clue[i] === Status.Green) {
-            possibilities[i] = possibilities[i].filter(v => v === guess[i])
-        }
-    }
-    return possibilities;
+function prune(list: string[], guess: string, clue: Clue): string[] {
+    return list.filter(v => getClue(guess, v).every((v, i) => v === clue[i]));
 }
 
 function merge(list1: string[], list2: string[]): string[] {
