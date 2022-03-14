@@ -13,16 +13,30 @@ type Clue = Status[];
     let answers = (await fs.readFile("answers.txt", "utf8")).split("\n"); // possible answers
     let guesses = (await fs.readFile("guesses.txt", "utf8")).split("\n");
 
-    let wordleMode = await binaryPrompt("1: Wordle\n2: Absurdle");
-    let hardMode = await binaryPrompt("1: Hard\n2: Normal");
-    let ownGuess = await binaryPrompt("1: Use own guess\n2: Suggest guess");
+    let mode = await naryPrompt("1: Wordle\n2: Absurdle\n3: Survivle", 3);
+    let hardMode = true;
+    if (mode !== 3)
+        hardMode = await naryPrompt("1: Hard\n2: Normal", 2) === 1;
+    let ownGuess = await naryPrompt("1: Use own guess\n2: Suggest guess", 2) === 1;
 
-    // Hardcoded first guess because it would take to long to process otherwise, and this will never change
-    let guess = "raise";
+    let guess = "";
     if (ownGuess) {
         do {
             guess = await inputGuess();
         } while (!guesses.includes(guess));
+    } else {
+        // Hardcoded first guess because it would take to long to process otherwise, and this will never change
+        switch (mode) {
+            case 1:
+                guess = "roate";
+                break;
+            case 2:
+                guess = "raise";
+                break;
+            case 3:
+                guess = "immix";
+                break;
+        }
     }
 
     console.log(guess.split("").join(" "));
@@ -30,15 +44,27 @@ type Clue = Status[];
     answers = prune(answers, guess, clue);
     if (hardMode) guesses = prune(guesses, guess, clue);
 
-    while (answers.length > 1) {
+    while (answers.length > 1 || (mode === 3 && guesses.length > 1)) {
         console.log(answers.length, "words remaining");
-        ownGuess = await binaryPrompt("1: Use own guess\n2: Suggest guess");
+        ownGuess = await naryPrompt("1: Use own guess\n2: Suggest guess", 2) === 1;
         let guess = "";
         if (ownGuess) {
             do {
                 guess = await inputGuess();
             } while (!guesses.includes(guess));
-        } else guess = (wordleMode ? wordle(guesses, answers) : absurdle(guesses, answers));
+        } else {
+            switch (mode) {
+                case 1:
+                    guess = wordle(guesses, answers);
+                    break;
+                case 2:
+                    guess = absurdle(guesses, answers);
+                    break;
+                case 3:
+                    guess = survivle(guesses, answers);
+                    break;
+            }
+        }
 
         console.log(guess.split("").join(" "));
         let clue = await inputClue();
@@ -90,7 +116,25 @@ function absurdle(guesses: string[], answers: string[]): string {
     return minGuess;
 }
 
-function binaryPrompt(prompt: string): Promise<boolean> {
+function survivle(guesses: string[], answers: string[]): string {
+    let { maxGuess } = guesses.reduce(({ maxGuess, max }, guess) => {
+        let clues: string[][] = Array(243).fill(0).map(v => []);
+
+        for (let answer of answers) {
+            let int = clueToInt(getClue(guess, answer));
+            clues[int].push(answer);
+        }
+
+        let average = clues.map(arr => arr.length * arr.length / answers.length).reduce((acc, cur) => acc + cur, 0);
+
+        if (average >= max) return { maxGuess: guess, max: average };
+        else return { maxGuess, max };
+    }, { maxGuess: "", max: 0 });
+
+    return maxGuess
+}
+
+function naryPrompt(prompt: string, num: number): Promise<number> {
     return new Promise(resolve => {
         console.log(prompt);
         process.stdout.write("> ");
@@ -99,23 +143,11 @@ function binaryPrompt(prompt: string): Promise<boolean> {
 
         process.stdin.removeAllListeners("keypress");
         process.stdin.on('keypress', function (ch, key) {
-            if (!ch) return;
-            if (ch === '1') resolve(true);
-            switch (ch) {
-                case '1':
-                    process.stdin.pause();
-                    process.stdout.write("1\n");
-                    resolve(true);
-                    return;
-                case '2':
-                    process.stdin.pause();
-                    process.stdout.write("2\n");
-                    resolve(false);
-                    return;
-                case '\x03':
-                    if (key.ctrl) process.exit();
-                    break;
-            }
+            if (key && key.name === "c" && key.ctrl) process.exit();
+            if (!ch || isNaN(Number(ch)) || Number(ch) > num || Number(ch) === 0) return;
+            process.stdin.pause();
+            process.stdout.write(ch + "\n");
+            resolve(Number(ch));
         });
 
         process.stdin.setRawMode(true);

@@ -11,11 +11,11 @@ A search tree would give us the optimal strategy, but at the cost of time. Searc
 </details>
 
 ## Options
-### Wordle and Absurdle mode
-In Wordle mode, the algorithm assumes that the target word is chosen randomly from the list of possible answers. In Absurdle mode, the algorithm assumes that the opponent will adversarily give clues that result in the largest number of possible answers.
+### Game Modes
+In Wordle mode, the algorithm assumes that the target word is chosen randomly from the list of possible answers. In Absurdle mode, the algorithm assumes that the opponent will adversarily give clues that result in the largest number of possible answers. In Survivle mode, the algorithm also assumes that the target word is chosen randomly, but aims to take the maximum number of guesses to find it, rather than the minimum.
 
 ### Normal and hard mode
-In normal mode, all guesses are allowed. In hard mode, only guesses that use all available information are allowed (i.e., they are possible answers given the clues so far).
+In normal mode, all guesses are allowed. In hard mode, only guesses that use all available information are allowed (i.e., they are possible answers given the clues so far). Survivle is always played in hard mode.
 
 ## Entering guesses and clues
 Before each guess, you are given the option to enter your own guess or have the algorithm suggest a guess for you. After one of these happens, you will need to enter the clue that the game gives you. You will see a colored box prompt such as `🟨🟨🟩⬛⬛`. Use the left and right arrow keys to move from one box to another, and use the up and down arrow keys to change the color of a box. Press enter to submit the clue.
