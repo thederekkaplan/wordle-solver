@@ -11,8 +11,7 @@ type Clue = Status[];
 
 (async () => {
     let answers = (await fs.readFile("answers.txt", "utf8")).split("\n"); // possible answers
-    let guessesWithoutAnswers = (await fs.readFile("guesses.txt", "utf8")).split("\n");
-    let guesses = merge(answers, guessesWithoutAnswers); // valid guesses
+    let guesses = (await fs.readFile("guesses.txt", "utf8")).split("\n");
 
     let wordleMode = await binaryPrompt("1: Wordle\n2: Absurdle");
     let hardMode = await binaryPrompt("1: Hard\n2: Normal");
@@ -243,27 +242,4 @@ function getClue(guess: string, answer: string): Clue {
 
 function prune(list: string[], guess: string, clue: Clue): string[] {
     return list.filter(v => getClue(guess, v).every((v, i) => v === clue[i]));
-}
-
-function merge(list1: string[], list2: string[]): string[] {
-    let i = 0, j = 0;
-    let result = [];
-
-    while (i < list1.length && j < list2.length) {
-        if (list1[i] <= list2[j]) {
-            result.push(list1[i]);
-            i++;
-        } else {
-            result.push(list2[j]);
-            j++;
-        }
-    }
-    if (i < list1.length) {
-        result.push(...list1.slice(i));
-    }
-    if (j < list2.length) {
-        result.push(...list2.slice(j));
-    }
-
-    return result;
 }
