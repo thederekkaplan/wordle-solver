@@ -78,6 +78,9 @@ type Clue = Status[];
 
 function wordle(guesses: string[], answers: string[]): string {
     if (answers.length === 1) return answers[0];
+    // If only 2 answers, 50% chance of getting it right
+    // Otherwise, we'll know it's the other one
+    if (answers.length === 2) return answers[0];
 
     let { minGuess } = guesses.reduce(({ minGuess, min }, guess) => {
         let clues: string[][] = Array(243).fill(0).map(v => []);
